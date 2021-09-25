@@ -1,0 +1,33 @@
+name: test-deployment
+on:
+  push: 
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+jobs:
+  build:
+    name: greenpole-stockbroker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: docker login 
+        uses: azure/docker-login@v1
+        with: 
+          login-server: greenpole.azurecr.io
+          username: ${{ secrets.GREENPOLE_API_USERNAME }}
+          password: ${{ secrets.GREENPOLE_API_PASSWORD }}
+
+      - name: build docker image 
+        run: |
+          docker build . --file Dockerfile -t greenpole.azurecr.io/greenpole-stockbroker:${{ github.sha }}
+          docker push greenpole.azurecr.io/greenpole-stockbroker:${{ github.sha }}
+
+      - name: Deploy Rancher
+        uses: colbyhill21/Rancher-Action@1.1
+        with: 
+          args: '"set image deployment/greenpole-stockbroker-test greenpole-stockbroker-test="greenpole.azurecr.io/greenpole-stockbroker:${{ github.sha }}" --record -n test-green --insecure-skip-tls-verify=true"'
+          token: ${{ secrets.RANCHER_SECRET_KEY }}
+          context: 'c-p2rfj:p-pp7ff'
+          url: ${{ secrets.RANCHER_URL_API }}        
